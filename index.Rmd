@@ -3,6 +3,10 @@ title       : Using Machine Learning to Enable Guided Weight-Lifting
 author      : Essence91214
 ---
 
+### Abstract 
+
+This study demonstrates the use of a machine learning technique to achieve automatic assessment of quality of performance during a weight lifting  exercise using dumbbells. The Random Forests algorithm produced highly accurate results as seen by 100% accuracy obtained on the 20 test cases.   
+
 ### Background and Problem Definition
 
 Recent technological developments have enabled fitness enthusiasts to take measurements about themselves regularly to improve their health and to find patterns in their behavior. While it is easy to quantify the amount of a particular activity, it is challenging to access how well it is done. Such information, which is lacking currently,  could be used as feedback to provide guidance to improve the quality of fitness training and exercises and therefore enhance ones physical state of being. Automatic accessment of the quality of exercise is the challenge we address in this study. 
@@ -95,7 +99,7 @@ The amount of training data provided is enormous and executing a learning algori
 
 ### Building A Model
 
-We used Random Forests algorithm to build a classifier, which is briefly described below.  
+We used Random Forests algorithm to build a classifier, which is briefly described below.  We explored few other algorithms such as boosting, using 'gbm' from caret package.  Since the accuracy achieved by Random Forests was always much larger than that achieved by the other algorithms, the trials with the other algorithms were discarded in the early stages of the study.   
 
 #### Random Forests Algorithm
 
@@ -116,6 +120,8 @@ Internally, OOB error is estimated during the run as follows:
 Each tree is constructed using a different bootstrap sample from the original data. As mentioned earlier, about one-third of the observations are left out of the bootstrap sample and not used in the construction of the each tree.
 
 Consider an Observation n. Put  it down each of the trees in which this observation was left out in the construction. In this way, a test set classification is obtained for each observation in about one-third of the trees. At the end of the run, take j to be the class that got most of the votes every time Observation n was OOB. The proportion of times that j is not equal to the true class of n averaged over all observations is the oob error estimate. This has proven to be unbiased in many tests.
+
+We tried 8 different models with varying values of parameters. Since the Random Forests method takes a long time to execute (over 2 hours of execution time on my Windows 7 quadcore PC ), once computed the models were saved. The 8th model, RfFit8, is used to generate this report. 
 
 ```{r  warning = FALSE, message = FALSE}
 
