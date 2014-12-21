@@ -1,0 +1,183 @@
+---
+title       : Using Machine Learning to Enable Guided Weight-Lifting
+author      : Essence91214
+---
+
+### Background and Problem Definition
+
+Recent technological developments have enabled fitness enthusiasts to take measurements about themselves regularly to improve their health and to find patterns in their behavior. While it is easy to quantify the amount of a particular activity, it is challenging to access how well it is done. Such information, which is lacking currently,  could be used as feedback to provide guidance to improve the quality of fitness training and exercises and therefore enhance ones physical state of being. Automatic accessment of the quality of exercise is the challenge we address in this study. 
+
+### Data Used in This Study
+
+The Data used in this analysis  was collected over a period of 8 hours from accelerometers on the belt, forearm, arm, and dumbell of 6 participants who  performed a set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions:
+
++ exactly according to the specification (Class A), 
++ throwing the elbows to the front (Class B), 
++ lifting the dumbbell only halfway (Class C), 
++ lowering the dumbbell only halfway (Class D), and 
++ throwing the hips to the front (Class E). 
+
+Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate.
+
+### Goal
+
++ Build a prediction model for 'classe' variable,
++ Calculate the out of sample error for the prediction model,  
++ Use the prediction model to predict the outcome for the 20 test cases provided, and 
++ Perform a diagnostic analysis of the model.
+
+```{r warning = FALSE, message = FALSE, comment = FALSE}
+#```{r echo = FALSE, warning = FALSE, message = FALSE, comment = FALSE}
+#Loading data and packages  
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+require(caret)
+require(randomForest)
+require(dplyr)
+plot(training$X, training$classe, yaxt = "n", main = "Figure 1. Misleading Step Pattern")
+axis(side = 2, at = 1:5,  labels =c("A", "B", "C", "D", "E"))
+
+```
+
+### Loading and Cleaning Data 
+
+The input training dataset has 19,622 observations and 160 variables including the 'classe' variable(160th).  We examined the other  159  variables with the intent of removing variables that do not seem to contribute towards predicting the 'classe' variable. 
+
+1. Consider the first variable, 'X', a row index and  examine the plot of 'X' vs 'classe' shown in Figure 1. It appears to have a 'step' pattern, however, we know that this pattern could be due to the training data being sorted by 'classe' variable. If the row index is included as one of the predictors for classe, it is likely that the prediction algorithm would make an inference relating  row indices and 'classe' values. As a result, given a new data the prediction is likely to be error prone unless the new data satisfies all three of the following conditions  (a) The size of new data and  the training data are identical, (b) It is also sorted by the 'classe' variable, and  (c) The ratio of samples with different values of 'classe' variables in new data is the same as that for the training data. This set of conditions are not reasonable expectations out of new data and therefore 'X' cannot be a predictor. We used reasoning such as these to remove the following variables from the set of predictors;
+
++ the row index (Column 1).
++ the user_name variable, the name of the subject performing the exercise (Column 2).
++ variables related to the time window for that particular observation (Columns 3 to 7).
+
+2. Because statistical summary data do not have any additional information for the prediction, we removed all variables that had  the following  substrings in their names: var, avg, stddev, amplitude, min, and max. This brought down the number of predictors to 77.  
+
+3. Because variables with near zero variance  do not contribute much information for the prediction function, we used 'nearZeroVar' from caret package to identify and remove those variables. This brought down the number of predictors to 53.
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+# Removing the first 7 cols because they are not measurements from accelerometers
+training <- training[ ,-(1:7)] 
+testing <- testing[ ,-(1:7)] 
+
+
+# Removing all variables that have one of the following substrings in their names c("min_", "max_", "var_", "stddev_", "avg_", "amplitude_" )
+Inmin <- grep( "min", names(training), fixed = TRUE, value = FALSE)
+Inmax <- grep( "max", names(training), fixed = TRUE, value = FALSE)
+rem <- union(Inmin, Inmax)
+Invar <- grep( "var", names(training), fixed = TRUE, value = FALSE)
+rem <- union(rem, Invar)
+Instddev <- grep( "stddev", names(training), fixed = TRUE, value = FALSE)
+rem <- union(rem, Instddev)
+Inavg <- grep( "avg", names(training), fixed = TRUE, value = FALSE)
+rem <- union(rem, Inavg)
+Inamp <- grep( "amplitude", names(training), fixed = TRUE, value = FALSE)
+rem <- union(rem, Inamp)
+training <- select(training, (-1*rem))
+testing <- select(testing, (-1*rem))
+
+# Removing variables with near zero variance
+nsv <- nearZeroVar(training, saveMetrics = TRUE)
+training <- training[ ,!(nsv$nzv)]
+testing <- testing[ ,!(nsv$nzv)]
+
+# Finding out how many missing values there are
+completec <- sum(complete.cases(training))/dim(training)[1]
+
+# Because the variable in testing corresponding to 'classe' is 'problem_id', we modify that
+names(testing)[53] = "classe"
+testing[ , 53] = factor(levels = c("A", "B", "c", "D", "E"))
+
+```
+
+### Splitting Data into Training and Validation Sets:
+
+The amount of training data provided is enormous and executing a learning algorithm on that data took a large amount of computation time. Therefore we split the given training set into training(60%) and validation(40%) sets. We used the training set to build a classifier. 
+
+### Building A Model
+
+We used Random Forests algorithm to build a classifier, which is briefly described below.  
+
+#### Random Forests Algorithm
+
+Random Forests method grows many classification trees. Each tree is constructed using a fixed size random subset of the training set, picked by sampling with replacement, called the bootstrap sample. About one-third of the observations in the training set are left out of each bootstrap sample. This OOB (out-of-bag) data is used to get a running unbiased estimate of the classification error as trees are added to the forest. It is also used to get estimates of variable importance.
+
+After each tree is built, all of the data are run down the tree, and proximities are computed for each pair of observations. If two observations occupy the same terminal node, their proximity is increased by one. At the end of the run, the proximities are normalized by dividing by the number of trees. Proximities are used in replacing missing data, locating outliers, and producing illuminating low-dimensional views of the data.
+
+To classify a new object from an input vector, the input vector is put down each of the trees in the forest. Each tree gives a classification, and we say that the tree "votes" for that class. The forest chooses the classification having the most votes (over all the trees in the forest).
+
+A user can pick various options while applying the Random Forests Algorithm. More details can be obtained online [3]. 
+
+### Cross Validation and Estimated Out of Sample Error 
+
+The expected out of sample error, which for the Random Forest method is given by OOB error is 0. For the Random Forests method the out of sample error is given by OOB (out-of-bag) error and there is no need for an explicit cross-validation test.  
+
+Internally, OOB error is estimated during the run as follows:
+
+Each tree is constructed using a different bootstrap sample from the original data. As mentioned earlier, about one-third of the observations are left out of the bootstrap sample and not used in the construction of the each tree.
+
+Consider an Observation n. Put  it down each of the trees in which this observation was left out in the construction. In this way, a test set classification is obtained for each observation in about one-third of the trees. At the end of the run, take j to be the class that got most of the votes every time Observation n was OOB. The proportion of times that j is not equal to the true class of n averaged over all observations is the oob error estimate. This has proven to be unbiased in many tests.
+
+```{r  warning = FALSE, message = FALSE}
+
+set.seed(1234)
+inTrain <- createDataPartition(y=training$classe, p=0.60, list=FALSE)
+newtraining <- training[inTrain, ]
+newtesting <- training[-inTrain, ]
+
+
+#predict using random forests
+if (!(file.exists("RfFit.saved"))){
+    set.seed(1234)
+    RfFit8 <- train(classe~., data = newtraining, method="rf",  importance=TRUE, prox = TRUE, trControl = 
+                   trainControl(method = "cv", number =4, allowParallel =T))
+    save(RfFit8, file = "RfFit.saved")
+    }
+load("RfFit.saved")
+
+# computing OOB error rate
+oobErrorRate <- mean(predict(RfFit8) != newtraining$classe )
+```
+
+Recall we held out 40% data as the validation set. As shown below, the prediction error on the validation data is less than 0.5%. 
+
+```{r  warning = FALSE, message = FALSE}
+# finding error rate for the test data
+mean(predict(RfFit8, newdata = newtesting ) != newtesting$classe )
+``` 
+
+### Prediction for the 20 Test Cases
+
+Predictions made by the above algorithm on the 20 samples of test data were 100% accurate. 
+
+### Diagnostic Plots
+
+Next we examine some diagnostic information relating to the Random Forests model. Figure 2 shows the accuracy of the prediction as a function of number of predictors and as can be seen, 27 is the optimum number of predictors. Figure 3 shows the convergence of error as a function of the number of trees. The Error rates converge as the number of trees approach 100, there is no significant improvement beyond 100 trees. Note also that for all 5 classes the error rates are less than 0.02. Finally, Figure 4 shows the Variable Importance plot - a graphical depiction of Variable importance assessment, which  is a process of ranking variables in the predictor set according to their importance in producing accurate predictions. This plot shows that roll_belt, yaw_belt, magnet_dumbbell_y, pitch_forearm, and magnet_dumbbell_z are the top five most important predictors. 
+
+### Conclusion 
+
+Random forests are computationally intensive and produce highly accurate predictions in all our tests. To utilize parallel processing for this application would provide a very good return on the investment of time.  
+
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+#Generating Diagnostic plots
+print(RfFit8)
+
+#plot the random forest model
+plot(RfFit8, main = "Figure 2. Accuracy Vs. Number of Predictors")
+plot(RfFit8$finalModel,  main = "Figure 3. Error Vs. Number of Trees")
+par(pin = c(8, 6))
+varImpPlot(RfFit8$finalModel,main = "Figure 4. Variable Importance" )
+
+
+```
+
+### References
+
+1. Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. [Qualitative Activity Recognition of Weight Lifting Exercises](http://groupware.les.inf.puc-rio.br/public/papers/2013.Velloso.QAR-WLE.pdf), Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.]
+
+
+2. Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. [Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements](http://groupware.les.inf.puc-rio.br/work.jsf?p1=10335), Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6. 
+
+
+3. [Random Forests Classifier Description](http://stat-www.berkeley.edu/users/breiman/RandomForests/cc_home.htm) (Site of Leo Breiman)
+
