@@ -141,7 +141,7 @@ oobErrorRate <- mean(predict(RfFit8) != newtraining$classe )
 Recall we held out 40% data as the validation set. As shown below, the prediction error on the validation data is less than 0.5%. 
 
 ```{r  warning = FALSE, message = FALSE}
-# finding error rate for the test data
+# finding error rate for the validation data set
 mean(predict(RfFit8, newdata = newtesting ) != newtesting$classe )
 ``` 
 

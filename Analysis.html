@@ -148,7 +148,7 @@ load(&quot;RfFit.saved&quot;)
 # computing OOB error rate
 oobErrorRate &lt;- mean(predict(RfFit8) != newtraining$classe )</code></pre>
 <p>Recall we held out 40% data as the validation set. As shown below, the prediction error on the validation data is less than 0.5%.</p>
-<pre class="r"><code># finding error rate for the test data
+<pre class="r"><code># finding error rate for the validation data set
 mean(predict(RfFit8, newdata = newtesting ) != newtesting$classe )</code></pre>
 <pre><code>## [1] 0.002294163</code></pre>
 </div>
